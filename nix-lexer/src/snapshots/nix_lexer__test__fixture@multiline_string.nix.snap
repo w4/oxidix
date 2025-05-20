@@ -1,0 +1,24 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "let x = ''\n  hello\n  world\n'';\nin x\n"
+input_file: nix-lexer/fixtures/multiline_string.nix
+---
+[
+    Let,
+    Ident(
+        "x",
+    ),
+    Equals,
+    MultilineString(
+        [
+            Content(
+                "\n  hello\n  world\n",
+            ),
+        ],
+    ),
+    Semicolon,
+    In,
+    Ident(
+        "x",
+    ),
+]

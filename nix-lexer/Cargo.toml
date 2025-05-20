@@ -1,0 +1,12 @@
+[package]
+name = "nix-lexer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+logos = "0.15"
+memchr = "2.7"
+
+[dev-dependencies]
+insta = { version = "1.43", features = ["glob"] }
+pretty_assertions = "1.4"

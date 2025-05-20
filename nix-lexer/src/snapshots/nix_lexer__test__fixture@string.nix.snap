@@ -1,0 +1,24 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "let x = \"hello world\"; in x\n"
+input_file: nix-lexer/fixtures/string.nix
+---
+[
+    Let,
+    Ident(
+        "x",
+    ),
+    Equals,
+    String(
+        [
+            Content(
+                "hello world",
+            ),
+        ],
+    ),
+    Semicolon,
+    In,
+    Ident(
+        "x",
+    ),
+]

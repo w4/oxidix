@@ -1,0 +1,20 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "''hello''\\nworld''\n"
+input_file: nix-lexer/fixtures/multiline_string_literal_newline.nix
+---
+[
+    MultilineString(
+        [
+            Content(
+                "hello",
+            ),
+            Content(
+                "\\n",
+            ),
+            Content(
+                "world",
+            ),
+        ],
+    ),
+]

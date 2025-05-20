@@ -1,0 +1,24 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "let x = \"\"; in x\n"
+input_file: nix-lexer/fixtures/empty_string.nix
+---
+[
+    Let,
+    Ident(
+        "x",
+    ),
+    Equals,
+    String(
+        [
+            Content(
+                "",
+            ),
+        ],
+    ),
+    Semicolon,
+    In,
+    Ident(
+        "x",
+    ),
+]

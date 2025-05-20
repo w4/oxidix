@@ -1,0 +1,24 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "\"${hello}\"\n"
+input_file: nix-lexer/fixtures/string_immediate_interpolation.nix
+---
+[
+    String(
+        [
+            Content(
+                "",
+            ),
+            Interpolation(
+                [
+                    Ident(
+                        "hello",
+                    ),
+                ],
+            ),
+            Content(
+                "",
+            ),
+        ],
+    ),
+]

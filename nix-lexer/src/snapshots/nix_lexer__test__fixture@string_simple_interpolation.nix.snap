@@ -1,0 +1,46 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "let\n  cruel = \"x\";\n  x = \"hello ${cruel} world\";\nin x\n"
+input_file: nix-lexer/fixtures/string_simple_interpolation.nix
+---
+[
+    Let,
+    Ident(
+        "cruel",
+    ),
+    Equals,
+    String(
+        [
+            Content(
+                "x",
+            ),
+        ],
+    ),
+    Semicolon,
+    Ident(
+        "x",
+    ),
+    Equals,
+    String(
+        [
+            Content(
+                "hello ",
+            ),
+            Interpolation(
+                [
+                    Ident(
+                        "cruel",
+                    ),
+                ],
+            ),
+            Content(
+                " world",
+            ),
+        ],
+    ),
+    Semicolon,
+    In,
+    Ident(
+        "x",
+    ),
+]

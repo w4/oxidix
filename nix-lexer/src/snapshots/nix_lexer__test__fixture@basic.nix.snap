@@ -1,0 +1,14 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "5 + 3\n"
+input_file: nix-lexer/fixtures/basic.nix
+---
+[
+    Int(
+        "5",
+    ),
+    Plus,
+    Int(
+        "3",
+    ),
+]

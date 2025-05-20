@@ -1,0 +1,46 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "let foo = \"'\" + ''''${foo}''; in ''text ${foo} text''\n"
+input_file: nix-lexer/fixtures/multiline_string_escaped_interpolation.nix
+---
+[
+    Let,
+    Ident(
+        "foo",
+    ),
+    Equals,
+    String(
+        [
+            Content(
+                "'",
+            ),
+        ],
+    ),
+    Plus,
+    MultilineString(
+        [
+            Content(
+                "''${foo}",
+            ),
+        ],
+    ),
+    Semicolon,
+    In,
+    MultilineString(
+        [
+            Content(
+                "text ",
+            ),
+            Interpolation(
+                [
+                    Ident(
+                        "foo",
+                    ),
+                ],
+            ),
+            Content(
+                " text",
+            ),
+        ],
+    ),
+]

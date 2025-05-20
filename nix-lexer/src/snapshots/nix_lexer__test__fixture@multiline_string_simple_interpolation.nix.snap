@@ -1,0 +1,46 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "let\n  cruel = \"test\";\n  x = ''\n    hello\n    ${cruel}\n    world\n  '';\nin x\n"
+input_file: nix-lexer/fixtures/multiline_string_simple_interpolation.nix
+---
+[
+    Let,
+    Ident(
+        "cruel",
+    ),
+    Equals,
+    String(
+        [
+            Content(
+                "test",
+            ),
+        ],
+    ),
+    Semicolon,
+    Ident(
+        "x",
+    ),
+    Equals,
+    MultilineString(
+        [
+            Content(
+                "\n    hello\n    ",
+            ),
+            Interpolation(
+                [
+                    Ident(
+                        "cruel",
+                    ),
+                ],
+            ),
+            Content(
+                "\n    world\n  ",
+            ),
+        ],
+    ),
+    Semicolon,
+    In,
+    Ident(
+        "x",
+    ),
+]

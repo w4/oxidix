@@ -1,0 +1,27 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "let foo = ''hello'''''; in foo\n"
+input_file: nix-lexer/fixtures/multiline_string_escaped_exit_end.nix
+---
+[
+    Let,
+    Ident(
+        "foo",
+    ),
+    Equals,
+    MultilineString(
+        [
+            Content(
+                "hello''",
+            ),
+            Content(
+                "",
+            ),
+        ],
+    ),
+    Semicolon,
+    In,
+    Ident(
+        "foo",
+    ),
+]

@@ -1,0 +1,24 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "let foo = ''hello $${foo}''; in foo\n"
+input_file: nix-lexer/fixtures/multiline_string_double_dollar_escaped_interpolation.nix
+---
+[
+    Let,
+    Ident(
+        "foo",
+    ),
+    Equals,
+    MultilineString(
+        [
+            Content(
+                "hello $${foo}",
+            ),
+        ],
+    ),
+    Semicolon,
+    In,
+    Ident(
+        "foo",
+    ),
+]

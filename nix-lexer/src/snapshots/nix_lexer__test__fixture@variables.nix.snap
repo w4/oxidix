@@ -1,0 +1,32 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "let x = 1; y = 2; in x + y\n"
+input_file: nix-lexer/fixtures/variables.nix
+---
+[
+    Let,
+    Ident(
+        "x",
+    ),
+    Equals,
+    Int(
+        "1",
+    ),
+    Semicolon,
+    Ident(
+        "y",
+    ),
+    Equals,
+    Int(
+        "2",
+    ),
+    Semicolon,
+    In,
+    Ident(
+        "x",
+    ),
+    Plus,
+    Ident(
+        "y",
+    ),
+]

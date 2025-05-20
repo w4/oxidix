@@ -1,0 +1,17 @@
+---
+source: nix-lexer/src/lib.rs
+expression: "\"\\\\\"\n"
+input_file: nix-lexer/fixtures/string_escaped_backslash.nix
+---
+[
+    String(
+        [
+            Content(
+                "\\\\",
+            ),
+            Content(
+                "",
+            ),
+        ],
+    ),
+]
