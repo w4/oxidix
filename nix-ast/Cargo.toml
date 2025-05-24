@@ -1,0 +1,14 @@
+[package]
+name = "nix-ast"
+description = "AST for the Nix programming language"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords = ["ast", "parser", "nix", "oxidix"]
+categories = ["parser-implementations"]
+
+[dependencies]
+nix-lexer = { path = "../nix-lexer" }
+thiserror = "2"

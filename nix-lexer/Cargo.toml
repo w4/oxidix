@@ -1,12 +1,28 @@
 [package]
 name = "nix-lexer"
+description = "Lexer for the Nix programming language"
 version = "0.1.0"
 edition = "2024"
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+keywords = ["lexer", "parser", "nix", "oxidix"]
+categories = ["parser-implementations"]
 
 [dependencies]
 logos = "0.15"
 memchr = "2.7"
+strum = { version = "0.27", features = ["derive"] }
 
 [dev-dependencies]
 insta = { version = "1.43", features = ["glob"] }
 pretty_assertions = "1.4"
+
+[lints.clippy]
+pedantic = "deny"
+style = "deny"
+perf = "deny"
+suspicious = "deny"
+correctness = "deny"
+cargo = "deny"
+complexity = "deny"

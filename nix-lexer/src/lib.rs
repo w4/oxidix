@@ -1,7 +1,9 @@
-use logos::{Lexer, Logos};
+pub use logos::{Lexer, Logos};
 use memchr::{memchr2_iter, memchr3_iter};
+use strum::{EnumDiscriminants, EnumMessage, EnumString};
 
-#[derive(Logos, Debug, PartialEq, Clone)]
+#[derive(Logos, Debug, PartialEq, Clone, EnumDiscriminants)]
+#[strum_discriminants(derive(EnumString, EnumMessage))]
 #[logos(skip r"[ \t\r\n\f]+")]
 pub enum Token<'a> {
     #[token("false", |_| false)]
@@ -107,6 +109,7 @@ pub enum StringToken<'a> {
     Interpolation(Vec<Token<'a>>),
 }
 
+#[allow(clippy::single_call_fn)]
 fn lex_multiline_string<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<Vec<StringToken<'a>>> {
     const SINGLE_QUOTE: u8 = b'\'';
 
@@ -143,9 +146,9 @@ fn lex_multiline_string<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<Vec<String
 
                         if depth == 0 {
                             break;
-                        } else {
-                            interpolated_tokens.push(token);
                         }
+
+                        interpolated_tokens.push(token);
                     }
 
                     if depth != 0 {
@@ -185,6 +188,7 @@ fn lex_multiline_string<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<Vec<String
     None
 }
 
+#[allow(clippy::single_call_fn, clippy::string_slice)]
 fn lex_string<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<Vec<StringToken<'a>>> {
     let mut out = Vec::new();
 
@@ -203,11 +207,8 @@ fn lex_string<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<Vec<StringToken<'a>>
                     lex.bump(pos + 1);
                     break;
                 }
-                (Some(b'\\'), _) => {
+                (Some(b'\\'), _) | (Some(b'$'), [b'$', ..]) => {
                     // escaped
-                }
-                (Some(b'$'), [b'$', ..]) => {
-                    // escaped dollar
                 }
                 (_, [b'$', b'{', ..]) => {
                     // push contents and advance
@@ -215,22 +216,26 @@ fn lex_string<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<Vec<StringToken<'a>>
                     lex.bump(pos + 2);
 
                     // keep going until we find our end token
-                    let mut depth = 1;
+                    let mut depth = 1_u32;
                     let mut interpolated_tokens = Vec::new();
                     let mut token_lexer = Token::lexer(lex.remainder());
 
                     while let Some(token) = token_lexer.next().transpose().ok()? {
                         match token {
-                            Token::BraceOpen | Token::InterpolationStart => depth += 1,
-                            Token::BraceClose => depth -= 1,
+                            Token::BraceOpen | Token::InterpolationStart => {
+                                depth = depth.saturating_add(1);
+                            }
+                            Token::BraceClose => {
+                                depth = depth.saturating_sub(1);
+                            }
                             _ => {}
                         }
 
                         if depth == 0 {
                             break;
-                        } else {
-                            interpolated_tokens.push(token);
                         }
+
+                        interpolated_tokens.push(token);
                     }
 
                     if depth != 0 {
@@ -243,7 +248,7 @@ fn lex_string<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<Vec<StringToken<'a>>
                 }
                 (_, [b'"', ..]) => {
                     out.push(StringToken::Content(&lex.remainder()[..pos]));
-                    lex.bump(pos + 1);
+                    lex.bump(pos.wrapping_add(1));
                     return Some(out);
                 }
                 _ => {}
@@ -255,49 +260,23 @@ fn lex_string<'a>(lex: &mut Lexer<'a, Token<'a>>) -> Option<Vec<StringToken<'a>>
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod test {
-    use std::path::PathBuf;
+    use std::fs::read_to_string;
 
     use insta::{assert_debug_snapshot, glob};
-    use logos::Logos;
+    use logos::Logos as _;
 
     use crate::Token;
 
     #[test]
     fn fixtures() {
         glob!("../fixtures", "*.nix", |path| {
-            let input = std::fs::read_to_string(path).unwrap();
-            let actual = Token::lexer(&input).collect::<Result<Vec<_>, _>>().unwrap();
+            let input = read_to_string(path).expect("failed to read fixture");
+            let actual = Token::lexer(&input)
+                .collect::<Result<Vec<_>, _>>()
+                .expect("failed to lex nix file");
             assert_debug_snapshot!("fixture", actual, &input);
         });
     }
-
-    // #[test]
-    // fn lex_entire_store() {
-    //     for d in glob::glob("/Users/jordan/code/nixpkgs/**/*.nix").unwrap() {
-    //         let d = d.unwrap();
-
-    //         eprintln!(
-    //             "------------------------------------------------\n{:?}\n----------------------------------------------",
-    //             d.display()
-    //         );
-
-    //         let input = std::fs::read_to_string(&d).unwrap();
-    //         let mut tokens = Token::lexer(&input);
-
-    //         while let Some(v) = tokens.next() {
-    //             match v {
-    //                 Ok(v) => {
-    //                     eprintln!("{v:?}");
-    //                 }
-    //                 Err(()) => {
-    //                     eprintln!("failed at {:?}", tokens.span());
-    //                     panic!("{}", d.display());
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     panic!();
-    // }
 }
