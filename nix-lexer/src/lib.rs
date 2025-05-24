@@ -45,10 +45,14 @@ pub enum Token<'a> {
     And,
     #[token(";")]
     Semicolon,
+    #[token("++")]
+    PlusPlus,
     #[token("+")]
     Plus,
     #[token("!")]
     Bang,
+    #[token("!=")]
+    BangEquals,
     #[token("-")]
     Neg,
     #[token("//")]
@@ -99,6 +103,12 @@ pub enum Token<'a> {
     At,
     #[token("*")]
     Asterisk,
+    #[token("->")]
+    Arrow,
+    #[token("|>")]
+    PipeRight,
+    #[token("<|")]
+    PipeLeft,
     #[regex("[.~]?/[A-Za-z0-9.][./A-Za-z0-9]*")]
     Path(&'a str),
 }

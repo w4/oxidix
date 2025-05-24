@@ -1,83 +1,119 @@
+mod expression;
+
 use std::{
-    collections::{BTreeMap, HashMap},
     iter::Peekable,
+    num::{ParseFloatError, ParseIntError},
 };
 
-use nix_lexer::{Lexer, Logos, Token, TokenDiscriminants};
+use expression::{ArrayExpression, BinaryExpression, IfExpression, LetExpression, UnaryExpression};
+use nix_lexer::{Lexer, Token, TokenDiscriminants};
 use thiserror::Error;
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
 pub enum Expression<'a> {
     Bool(bool),
-    Int(&'a str),
+    Int(i64),
+    Float(WrappedFloat),
     Add(Box<(Expression<'a>, Expression<'a>)>),
     Let(Box<LetExpression<'a>>),
     Ident(&'a str),
+    If(Box<IfExpression<'a>>),
+    Binary(Box<BinaryExpression<'a>>),
+    Unary(Box<UnaryExpression<'a>>),
+    Array(ArrayExpression<'a>),
+    Comment,
 }
 
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Unexpected end of file")]
     UnexpectedEndOfFile,
+    #[error("Unexpected token {0:?}")]
+    UnexpectedTopLevelToken(TokenDiscriminants),
     #[error("Unexpected token {0:?} expected one of {1:?}")]
     UnexpectedToken(TokenDiscriminants, Vec<TokenDiscriminants>),
+    #[error("Invalid integer: {0}")]
+    ParseInt(#[from] ParseIntError),
+    #[error("Invalid float: {0}")]
+    ParseFloat(#[from] ParseFloatError),
 }
 
 pub fn parse_expression<'a>(stream: Lexer<'a, Token<'a>>) -> Result<Expression<'a>, Error> {
-    parse_expression_inner(&mut stream.peekable())
+    parse_expression_inner(&mut stream.peekable(), u8::MAX)
 }
 
-pub fn parse_expression_inner<'a, 'b: 'a>(
+fn parse_expression_inner<'a>(
     stream: &mut Peekable<Lexer<'a, Token<'a>>>,
+    min_prec: u8,
 ) -> Result<Expression<'a>, Error> {
+    let mut left = if let Some(expr) = UnaryExpression::parse(stream)? {
+        Expression::Unary(Box::new(expr))
+    } else {
+        parse_primary(stream)?
+    };
+
+    loop {
+        let Some((operator, right)) = BinaryExpression::parse(stream, min_prec)? else {
+            break;
+        };
+
+        left = Expression::Binary(Box::new(BinaryExpression {
+            operator,
+            left,
+            right,
+        }));
+    }
+
+    Ok(left)
+}
+
+fn parse_primary<'a>(stream: &mut Peekable<Lexer<'a, Token<'a>>>) -> Result<Expression<'a>, Error> {
     let token = stream.next().ok_or(Error::UnexpectedEndOfFile)?.unwrap();
 
     match token {
         Token::Bool(v) => Ok(Expression::Bool(v)),
-        Token::Let => Ok(Expression::Let(Box::new(parse_let_expression(stream)?))),
-        Token::In => todo!("in"),
-        Token::If => todo!("if"),
-        Token::Else => todo!("else"),
-        Token::Then => todo!("then"),
-        Token::Int(v) => Ok(Expression::Int(v)),
-        Token::Float(_) => todo!("float"),
+        Token::Let => Ok(Expression::Let(Box::new(LetExpression::parse(stream)?))),
+        Token::If => Ok(Expression::If(Box::new(IfExpression::parse(stream)?))),
+        Token::Int(v) => Ok(Expression::Int(v.parse()?)),
+        Token::Float(v) => Ok(Expression::Float(WrappedFloat(v.parse()?))),
         Token::Ident(v) => Ok(Expression::Ident(v)),
-        Token::Dot => todo!("dot"),
-        Token::Equals => todo!("equals"),
-        Token::DoubleEquals => todo!("double equals"),
-        Token::Ge => todo!("ge"),
-        Token::Le => todo!("le"),
-        Token::Lt => todo!("lt"),
-        Token::Gt => todo!("gt"),
-        Token::Or => todo!("or"),
-        Token::And => todo!("and"),
-        Token::Semicolon => todo!("semi"),
-        Token::Plus => todo!("plus"),
-        Token::Bang => todo!("bang"),
-        Token::Neg => todo!("neg"),
-        Token::SlashSlash => todo!("ss"),
+        Token::BracketOpen => {
+            let node = parse_expression_inner(stream, u8::MAX)?;
+            expect_next_token_or_error(stream, TokenDiscriminants::BracketClose)?;
+            Ok(node)
+        }
+        Token::InterpolationStart => {
+            let node = parse_expression_inner(stream, u8::MAX)?;
+            expect_next_token_or_error(stream, TokenDiscriminants::BraceClose)?;
+            Ok(node)
+        }
+        Token::SquareBracketOpen => Ok(Expression::Array(ArrayExpression::parse(stream)?)),
         Token::BraceOpen => todo!("bo"),
         Token::BraceClose => todo!("bc"),
-        Token::BracketOpen => todo!("bracket open"),
-        Token::BracketClose => todo!("bracket close"),
-        Token::SquareBracketOpen => todo!("sqb open"),
-        Token::SquareBracketClose => todo!("sqb close"),
-        Token::BlockComment => todo!("bl comm"),
-        Token::InlineComment => todo!("in comm"),
         Token::Colon => todo!("colon"),
         Token::Inherit => todo!("inherit"),
         Token::Rec => todo!("rec"),
         Token::Question => todo!("quest"),
         Token::Dollar => todo!("dollar"),
-        Token::InterpolationStart => todo!("interp start"),
         Token::String(string_tokens) => todo!("str"),
         Token::MultilineString(string_tokens) => todo!("multi"),
-        Token::Comma => todo!("comma"),
-        Token::Slash => todo!("slash"),
         Token::Throw => todo!("throw"),
         Token::At => todo!("at"),
         Token::Asterisk => todo!("aster"),
         Token::Path(_) => todo!("path"),
+        Token::BlockComment | Token::InlineComment => Ok(Expression::Comment),
+        v => Err(Error::UnexpectedTopLevelToken(v.into())),
+    }
+}
+
+#[derive(PartialEq, Debug, Clone, PartialOrd)]
+pub struct WrappedFloat(f64);
+
+impl Eq for WrappedFloat {}
+
+impl Ord for WrappedFloat {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.total_cmp(&other.0)
     }
 }
 
@@ -85,47 +121,6 @@ pub fn parse_expression_inner<'a, 'b: 'a>(
 pub enum BindingName<'a> {
     Lazy(Expression<'a>),
     Value(&'a str),
-}
-
-#[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
-pub struct LetExpression<'a> {
-    pub bindings: BTreeMap<Vec<BindingName<'a>>, Expression<'a>>,
-    pub inner: Expression<'a>,
-}
-
-fn parse_let_expression<'a>(
-    stream: &mut Peekable<Lexer<'a, Token<'a>>>,
-) -> Result<LetExpression<'a>, Error> {
-    let mut bindings = BTreeMap::new();
-
-    let inner = loop {
-        match stream.peek() {
-            Some(Ok(Token::In)) => {
-                stream.next();
-                break parse_expression_inner(stream)?;
-            }
-            Some(Ok(Token::Ident(_))) => {
-                let name = parse_binding_name(stream)?;
-                let value = parse_expression_inner(stream)?;
-                expect_next_token_or_error(stream, TokenDiscriminants::Semicolon)?;
-                bindings.insert(name, value);
-            }
-            Some(Ok(token)) => {
-                return Err(Error::UnexpectedToken(
-                    token.into(),
-                    vec![
-                        TokenDiscriminants::In,
-                        TokenDiscriminants::Ident,
-                        TokenDiscriminants::Inherit,
-                    ],
-                ));
-            }
-            Some(Err(())) => panic!(),
-            None => return Err(Error::UnexpectedEndOfFile),
-        }
-    };
-
-    Ok(LetExpression { bindings, inner })
 }
 
 fn parse_binding_name<'a>(
@@ -137,7 +132,7 @@ fn parse_binding_name<'a>(
         match stream.next() {
             Some(Ok(Token::Ident(ident))) => name.push(BindingName::Value(ident)),
             Some(Ok(Token::InterpolationStart)) => {
-                name.push(BindingName::Lazy(parse_expression_inner(stream)?));
+                name.push(BindingName::Lazy(parse_expression_inner(stream, u8::MAX)?));
                 expect_next_token_or_error(stream, TokenDiscriminants::BraceClose)?;
             }
             Some(Ok(Token::Equals)) => return Ok(name),
@@ -176,8 +171,29 @@ mod test {
     use crate::parse_expression;
 
     #[test]
-    fn test() {
+    fn operator() {
+        let lex = nix_lexer::Token::lexer("[(1 + 2 + 3) 5]");
+        let actual = parse_expression(lex).unwrap();
+        panic!("{actual:#?}");
+    }
+
+    #[test]
+    fn complex_operator_precedence() {
+        let lex = nix_lexer::Token::lexer("1 + 2 * 3 == 7");
+        let actual = parse_expression(lex).unwrap();
+        panic!("{actual:#?}");
+    }
+
+    #[test]
+    fn let_in() {
         let lex = nix_lexer::Token::lexer("let x = 5; in x");
+        let actual = parse_expression(lex).unwrap();
+        panic!("{actual:#?}");
+    }
+
+    #[test]
+    fn if_statement() {
+        let lex = nix_lexer::Token::lexer("if true then 1 else 2");
         let actual = parse_expression(lex).unwrap();
         panic!("{actual:#?}");
     }
