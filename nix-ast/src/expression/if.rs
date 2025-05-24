@@ -5,7 +5,9 @@ use nix_lexer::{SpannedIter, Token, TokenDiscriminants};
 use crate::{Expression, SpannedError, expect_next_token_or_error, parse_expression_inner};
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct IfExpression<'a> {
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub condition: Expression<'a>,
     pub then: Expression<'a>,
     pub r#else: Expression<'a>,

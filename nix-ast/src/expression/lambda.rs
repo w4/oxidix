@@ -8,8 +8,10 @@ use crate::{
 };
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LambdaExpression<'a> {
     pub parameters: LambdaParameters<'a>,
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub body: Expression<'a>,
 }
 
@@ -41,6 +43,7 @@ impl<'a> LambdaExpression<'a> {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LambdaParameters<'a> {
     Set(LambdaParametersSet<'a>),
     Named(&'a str),
@@ -61,6 +64,7 @@ impl<'a> LambdaParameters<'a> {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LambdaParametersSet<'a> {
     pub inner: BTreeMap<&'a str, LambdaParameter<'a>>,
     pub extra_ignored: bool,
@@ -150,6 +154,8 @@ impl<'a> LambdaParametersSet<'a> {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LambdaParameter<'a> {
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub default: Option<Expression<'a>>,
 }

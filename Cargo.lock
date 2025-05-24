@@ -157,7 +157,9 @@ version = "0.1.0"
 dependencies = [
  "ariadne",
  "insta",
+ "nix-ast",
  "nix-lexer",
+ "serde",
  "thiserror",
 ]
 

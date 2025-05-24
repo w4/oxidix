@@ -5,8 +5,10 @@ use nix_lexer::{SpannedIter, Token};
 use crate::{Error, Expression, HandleStreamError, SpannedError, parse_expression_inner};
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnaryExpression<'a> {
     pub operator: UnaryOperator,
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub expression: Expression<'a>,
 }
 
@@ -35,6 +37,7 @@ impl<'a> UnaryExpression<'a> {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum UnaryOperator {
     ArithmeticNegation,
     LogicalNot,

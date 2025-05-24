@@ -10,8 +10,10 @@ use crate::{
 use super::attrset::parse_inherits;
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LetExpression<'a> {
     pub bindings: BTreeMap<Vec<BindingName<'a>>, Expression<'a>>,
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub inner: Expression<'a>,
 }
 

@@ -81,6 +81,7 @@ use nix_lexer::{Lexer, SpannedIter, Token, TokenDiscriminants};
 /// # Ok::<(), nix_ast::SpannedError>(())
 /// ```
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Expression<'a> {
     /// Boolean literal (`true` or `false`)
     Bool(bool),
@@ -261,6 +262,7 @@ fn wrapped_interpolated<'a>(
 /// assert!(f1 > f2);
 /// ```
 #[derive(PartialEq, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WrappedFloat(pub f64);
 
 impl Eq for WrappedFloat {}
@@ -290,6 +292,7 @@ impl Ord for WrappedFloat {
 /// // Dynamic binding: ${expr} = 1;
 /// ```
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum BindingName<'a> {
     /// A dynamic binding name that requires evaluation (e.g., `${expr}`)
     Lazy(Expression<'a>),
@@ -381,6 +384,7 @@ fn expect_next_token_or_error<'a>(
 /// - The file at `path` cannot be read
 /// - The error message cannot be formatted (very unlikely)
 /// - The resulting bytes cannot be converted to UTF-8 (very unlikely)
+#[cfg(feature = "ariadne")]
 pub fn format_error(error: SpannedError, path: &Path) -> String {
     use ariadne::{Label, Report, ReportKind};
 
@@ -406,7 +410,7 @@ mod test {
     use insta::{assert_debug_snapshot, assert_snapshot, glob};
     use nix_lexer::Logos as _;
 
-    use crate::{format_error, parse_expression};
+    use crate::parse_expression;
 
     #[test]
     fn fixtures() {
@@ -416,7 +420,11 @@ mod test {
             match parse_expression(lex) {
                 Ok(v) => assert_debug_snapshot!("fixture", v, &input),
                 Err(e) => {
-                    assert_snapshot!("fixture", strip_ansi_codes(&format_error(e, path)), &input)
+                    assert_snapshot!(
+                        "fixture",
+                        strip_ansi_codes(&crate::format_error(e, path)),
+                        &input
+                    )
                 }
             }
         });

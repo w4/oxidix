@@ -29,10 +29,12 @@ use crate::{
 /// // Function application: func arg
 /// ```
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BinaryExpression<'a> {
     /// The binary operator being applied
     pub operator: BinaryOperator,
     /// The left operand expression
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub left: Expression<'a>,
     /// The right operand expression
     pub right: Expression<'a>,
@@ -143,6 +145,7 @@ fn parse_binary_expression<'a>(
 ///
 /// See: https://nix.dev/manual/nix/2.29/language/operators.html
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum BinaryOperator {
     /// Attribute selection operator (`.`) - `obj.attr`
     AttributeSelection,

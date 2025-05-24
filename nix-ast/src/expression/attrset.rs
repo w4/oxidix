@@ -8,8 +8,10 @@ use crate::{
 };
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AttrsetExpression<'a> {
     pub recursive: bool,
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub bindings: BTreeMap<Vec<BindingName<'a>>, Expression<'a>>,
 }
 

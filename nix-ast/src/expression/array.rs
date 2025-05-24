@@ -5,7 +5,9 @@ use nix_lexer::{SpannedIter, Token, TokenDiscriminants};
 use crate::{Expression, HandleStreamError, SpannedError, parse_primary};
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ArrayExpression<'a> {
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub values: Vec<Expression<'a>>,
 }
 
