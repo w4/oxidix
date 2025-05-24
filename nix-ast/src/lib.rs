@@ -55,7 +55,7 @@ use error::WithSpan;
 pub use error::{Error, HandleStreamError, SpannedError};
 use expression::{
     ArrayExpression, AttrsetExpression, BinaryExpression, IfExpression, LambdaExpression,
-    LetExpression, UnaryExpression,
+    LetExpression, ThrowExpression, UnaryExpression,
 };
 use nix_lexer::{Lexer, SpannedIter, Token, TokenDiscriminants};
 
@@ -121,6 +121,9 @@ pub enum Expression<'a> {
 
     /// Attribute set (`{ x = 1; y = 2; }`)
     Attrset(AttrsetExpression<'a>),
+
+    /// Exception throw (`throw "test"`)
+    Throw(Box<ThrowExpression<'a>>),
 }
 
 /// Parses a Nix expression from a token stream.
@@ -227,10 +230,10 @@ fn parse_primary<'a>(
             recursive: true,
             ..AttrsetExpression::parse(stream)?
         })),
+        Token::Throw => Ok(Expression::Throw(Box::new(ThrowExpression::parse(stream)?))),
         Token::Dollar => todo!("dollar"),
         Token::String(_string_tokens) => todo!("str"),
         Token::MultilineString(_string_tokens) => todo!("multi"),
-        Token::Throw => todo!("throw"),
         Token::Path(_) => todo!("path"),
         Token::BlockComment | Token::InlineComment => Ok(Expression::Comment),
         v => Err(Error::UnexpectedTopLevelToken(v.into()).with_span(span)),

@@ -1,0 +1,29 @@
+---
+source: nix-ast/src/lib.rs
+expression: "t: if true then throw t else 2\n"
+input_file: nix-ast/fixtures/if_throw.nix
+---
+Lambda(
+    LambdaExpression {
+        parameters: Named(
+            "t",
+        ),
+        body: If(
+            IfExpression {
+                condition: Bool(
+                    true,
+                ),
+                then: Throw(
+                    ThrowExpression {
+                        expression: Ident(
+                            "t",
+                        ),
+                    },
+                ),
+                else: Int(
+                    2,
+                ),
+            },
+        ),
+    },
+)

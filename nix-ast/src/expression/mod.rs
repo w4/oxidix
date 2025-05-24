@@ -11,6 +11,7 @@ mod binary;
 mod r#if;
 mod lambda;
 mod r#let;
+mod throw;
 mod unary;
 
 pub use array::ArrayExpression;
@@ -19,4 +20,5 @@ pub use binary::{BinaryAssociativity, BinaryExpression, BinaryOperator};
 pub use r#if::IfExpression;
 pub use lambda::{LambdaExpression, LambdaParameter, LambdaParameters};
 pub use r#let::LetExpression;
+pub use throw::ThrowExpression;
 pub use unary::UnaryExpression;

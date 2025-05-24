@@ -85,7 +85,6 @@ match parse_expression(lexer) {
 
 ## Documentation
 
-- [Complete API Documentation](API_DOCUMENTATION.md)
 - [Examples](examples/)
 - [Contributing Guide](#contributing)
 

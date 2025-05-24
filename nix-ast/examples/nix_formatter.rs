@@ -82,6 +82,10 @@ impl NixFormatter {
                 self.write(" + ")?;
                 self.format_expression(&add.1)
             }
+            Expression::Throw(expression) => {
+                self.write("throw ")?;
+                self.format_expression(&expression.expression)
+            }
             Expression::Comment => self.write("# comment"),
         }
     }
