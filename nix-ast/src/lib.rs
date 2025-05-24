@@ -40,6 +40,8 @@ pub enum Error {
     ParseInt(#[from] ParseIntError),
     #[error("Invalid float: {0}")]
     ParseFloat(#[from] ParseFloatError),
+    #[error("Duplicate formal function argument: {0}")]
+    DuplicateFunctionArgument(String),
 }
 
 pub fn parse_expression<'a>(stream: Lexer<'a, Token<'a>>) -> Result<Expression<'a>, Error> {
@@ -84,20 +86,11 @@ fn parse_primary<'a>(stream: &mut Peekable<Lexer<'a, Token<'a>>>) -> Result<Expr
         Token::Int(v) => Ok(Expression::Int(v.parse()?)),
         Token::Float(v) => Ok(Expression::Float(WrappedFloat(v.parse()?))),
         Token::Ident(v) => Ok(Expression::Ident(v)),
-        Token::BracketOpen => {
-            let node = parse_expression_inner(stream, u8::MAX)?;
-            expect_next_token_or_error(stream, TokenDiscriminants::BracketClose)?;
-            Ok(node)
-        }
-        Token::InterpolationStart => {
-            let node = parse_expression_inner(stream, u8::MAX)?;
-            expect_next_token_or_error(stream, TokenDiscriminants::BraceClose)?;
-            Ok(node)
-        }
+        Token::BracketOpen => wrapped_interpolated(stream, TokenDiscriminants::BracketClose),
+        Token::InterpolationStart => wrapped_interpolated(stream, TokenDiscriminants::BraceClose),
         Token::SquareBracketOpen => Ok(Expression::Array(ArrayExpression::parse(stream)?)),
         Token::BraceOpen => todo!("bo"),
         Token::BraceClose => todo!("bc"),
-        Token::Colon => todo!("colon"),
         Token::Inherit => todo!("inherit"),
         Token::Rec => todo!("rec"),
         Token::Question => todo!("quest"),
@@ -111,6 +104,15 @@ fn parse_primary<'a>(stream: &mut Peekable<Lexer<'a, Token<'a>>>) -> Result<Expr
         Token::BlockComment | Token::InlineComment => Ok(Expression::Comment),
         v => Err(Error::UnexpectedTopLevelToken(v.into())),
     }
+}
+
+fn wrapped_interpolated<'a>(
+    stream: &mut Peekable<Lexer<'a, Token<'a>>>,
+    end: TokenDiscriminants,
+) -> Result<Expression<'a>, Error> {
+    let node = parse_expression_inner(stream, u8::MAX)?;
+    expect_next_token_or_error(stream, end)?;
+    Ok(node)
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -191,8 +193,10 @@ mod test {
         glob!("../fixtures", "*.nix", |path| {
             let input = read_to_string(path).expect("failed to read fixture");
             let lex = nix_lexer::Token::lexer(&input);
-            let actual = parse_expression(lex).unwrap();
-            assert_debug_snapshot!("fixture", actual, &input);
+            match parse_expression(lex) {
+                Ok(v) => assert_debug_snapshot!("fixture", v, &input),
+                Err(e) => assert_debug_snapshot!("fixture", e, &input),
+            }
         });
     }
 }

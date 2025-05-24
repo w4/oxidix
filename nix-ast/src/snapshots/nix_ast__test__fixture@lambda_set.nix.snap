@@ -8,25 +8,13 @@ Lambda(
         parameters: Set(
             LambdaParametersSet {
                 inner: {
-                    [
-                        Value(
-                            "n",
-                        ),
-                    ]: LambdaParameter {
+                    "n": LambdaParameter {
                         default: None,
                     },
-                    [
-                        Value(
-                            "x",
-                        ),
-                    ]: LambdaParameter {
+                    "x": LambdaParameter {
                         default: None,
                     },
-                    [
-                        Value(
-                            "y",
-                        ),
-                    ]: LambdaParameter {
+                    "y": LambdaParameter {
                         default: Some(
                             Binary(
                                 BinaryExpression {
@@ -43,6 +31,8 @@ Lambda(
                         ),
                     },
                 },
+                extra_ignored: false,
+                bound: None,
             },
         ),
         body: Binary(

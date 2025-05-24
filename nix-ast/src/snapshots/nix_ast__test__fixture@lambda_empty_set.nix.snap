@@ -1,0 +1,19 @@
+---
+source: nix-ast/src/lib.rs
+expression: "{}: 5\n"
+input_file: nix-ast/fixtures/lambda_empty_set.nix
+---
+Lambda(
+    LambdaExpression {
+        parameters: Set(
+            LambdaParametersSet {
+                inner: {},
+                extra_ignored: false,
+                bound: None,
+            },
+        ),
+        body: Int(
+            5,
+        ),
+    },
+)

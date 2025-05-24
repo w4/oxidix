@@ -8,77 +8,39 @@ Lambda(
         parameters: Set(
             LambdaParametersSet {
                 inner: {
-                    [
-                        Value(
-                            "a",
-                        ),
-                    ]: LambdaParameter {
+                    "a": LambdaParameter {
                         default: None,
                     },
-                    [
-                        Value(
-                            "c",
-                        ),
-                    ]: LambdaParameter {
+                    "c": LambdaParameter {
                         default: None,
                     },
-                    [
-                        Value(
-                            "d",
-                        ),
-                    ]: LambdaParameter {
+                    "d": LambdaParameter {
                         default: None,
                     },
-                    [
-                        Value(
-                            "e",
-                        ),
-                    ]: LambdaParameter {
+                    "e": LambdaParameter {
                         default: None,
                     },
-                    [
-                        Value(
-                            "f",
-                        ),
-                    ]: LambdaParameter {
+                    "f": LambdaParameter {
                         default: None,
                     },
-                    [
-                        Value(
-                            "g",
-                        ),
-                    ]: LambdaParameter {
+                    "g": LambdaParameter {
                         default: None,
                     },
-                    [
-                        Value(
-                            "i",
-                        ),
-                    ]: LambdaParameter {
+                    "i": LambdaParameter {
                         default: None,
                     },
-                    [
-                        Value(
-                            "j",
-                        ),
-                    ]: LambdaParameter {
+                    "j": LambdaParameter {
                         default: None,
                     },
-                    [
-                        Value(
-                            "k",
-                        ),
-                    ]: LambdaParameter {
+                    "k": LambdaParameter {
                         default: None,
                     },
-                    [
-                        Value(
-                            "l",
-                        ),
-                    ]: LambdaParameter {
+                    "l": LambdaParameter {
                         default: None,
                     },
                 },
+                extra_ignored: false,
+                bound: None,
             },
         ),
         body: Binary(

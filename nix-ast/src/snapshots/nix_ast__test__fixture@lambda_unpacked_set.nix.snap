@@ -1,0 +1,23 @@
+---
+source: nix-ast/src/lib.rs
+expression: "{ a, ... }: a\n"
+input_file: nix-ast/fixtures/lambda_unpacked_set.nix
+---
+Lambda(
+    LambdaExpression {
+        parameters: Set(
+            LambdaParametersSet {
+                inner: {
+                    "a": LambdaParameter {
+                        default: None,
+                    },
+                },
+                extra_ignored: true,
+                bound: None,
+            },
+        ),
+        body: Ident(
+            "a",
+        ),
+    },
+)

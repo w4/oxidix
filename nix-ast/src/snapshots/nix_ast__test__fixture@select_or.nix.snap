@@ -17,35 +17,25 @@ Let(
         inner: Binary(
             BinaryExpression {
                 operator: AttributeSelection,
-                left: Ident(
-                    "a",
-                ),
-                right: Binary(
+                left: Binary(
                     BinaryExpression {
                         operator: AttributeSelection,
                         left: Ident(
+                            "a",
+                        ),
+                        right: Ident(
                             "b",
                         ),
-                        right: Binary(
-                            BinaryExpression {
-                                operator: FunctionApplication,
-                                left: Binary(
-                                    BinaryExpression {
-                                        operator: FunctionApplication,
-                                        left: Ident(
-                                            "c",
-                                        ),
-                                        right: Ident(
-                                            "or",
-                                        ),
-                                    },
-                                ),
-                                right: Int(
-                                    5,
-                                ),
-                            },
-                        ),
+                        postfix: None,
                     },
+                ),
+                right: Ident(
+                    "c",
+                ),
+                postfix: Some(
+                    Int(
+                        5,
+                    ),
                 ),
             },
         ),

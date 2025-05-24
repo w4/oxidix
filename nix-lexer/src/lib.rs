@@ -25,6 +25,8 @@ pub enum Token<'a> {
     Float(&'a str),
     #[regex(r"[a-zA-Z_](['a-zA-Z0-9_\-])*")]
     Ident(&'a str),
+    #[token("...")]
+    DotDotDot,
     #[token(".")]
     Dot,
     #[token("=")]

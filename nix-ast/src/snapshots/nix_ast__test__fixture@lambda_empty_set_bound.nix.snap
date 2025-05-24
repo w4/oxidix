@@ -1,0 +1,30 @@
+---
+source: nix-ast/src/lib.rs
+expression: "{}@attrs: attrs.a\n"
+input_file: nix-ast/fixtures/lambda_empty_set_bound.nix
+---
+Lambda(
+    LambdaExpression {
+        parameters: Set(
+            LambdaParametersSet {
+                inner: {},
+                extra_ignored: false,
+                bound: Some(
+                    "attrs",
+                ),
+            },
+        ),
+        body: Binary(
+            BinaryExpression {
+                operator: AttributeSelection,
+                left: Ident(
+                    "attrs",
+                ),
+                right: Ident(
+                    "a",
+                ),
+                postfix: None,
+            },
+        ),
+    },
+)

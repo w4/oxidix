@@ -51,7 +51,7 @@ impl<'a> BinaryExpression<'a> {
 
         let postfix = match operator {
             BinaryOperator::AttributeSelection => {
-                if let Some(Ok(Token::Or)) = stream.peek() {
+                if let Some(Ok(Token::TextOr)) = stream.peek() {
                     stream.next();
                     Some(parse_expression_inner(stream, next_prec)?)
                 } else {
