@@ -1,3 +1,10 @@
+//! Binary expression parsing and representation.
+//!
+//! This module handles all binary operations in Nix, including arithmetic,
+//! logical, comparison, and Nix-specific operations like attribute selection
+//! and function application. It implements proper operator precedence and
+//! associativity according to the Nix language specification.
+
 use std::iter::Peekable;
 
 use nix_lexer::{SpannedIter, Token, TokenDiscriminants};
@@ -7,11 +14,29 @@ use crate::{
     parse_expression_inner,
 };
 
+/// Represents a binary operation between two expressions.
+///
+/// Binary expressions form the backbone of most Nix computations, from simple
+/// arithmetic to complex attribute manipulations. This struct handles all
+/// binary operations with proper precedence and associativity.
+///
+/// # Examples
+///
+/// ```rust
+/// // Arithmetic: 1 + 2
+/// // Comparison: x == y
+/// // Attribute selection: obj.attr
+/// // Function application: func arg
+/// ```
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
 pub struct BinaryExpression<'a> {
+    /// The binary operator being applied
     pub operator: BinaryOperator,
+    /// The left operand expression
     pub left: Expression<'a>,
+    /// The right operand expression
     pub right: Expression<'a>,
+    /// Optional postfix expression (used for `or` in attribute selection)
     pub postfix: Option<Expression<'a>>,
 }
 
@@ -93,32 +118,107 @@ fn parse_binary_expression<'a>(
     }
 }
 
-// https://nix.dev/manual/nix/2.29/language/operators.html
+/// Binary operators in the Nix language.
+///
+/// This enum represents all binary operators supported by Nix, ordered by
+/// their precedence (lowest to highest). The precedence follows the official
+/// Nix language specification.
+///
+/// # Precedence Order (lowest to highest)
+///
+/// 1. Attribute selection (`.`)
+/// 2. Function application (juxtaposition)
+/// 3. Has attribute (`?`)
+/// 4. List concatenation (`++`)
+/// 5. Multiplication (`*`), Division (`/`)
+/// 6. Addition (`+`), Subtraction (`-`)
+/// 7. Update (`//`)
+/// 8. Comparisons (`<`, `<=`, `>`, `>=`, `==`, `!=`)
+/// 9. Logical AND (`&&`)
+/// 10. Logical OR (`||`)
+/// 11. Logical implication (`->`)
+/// 12. Pipe operators (`|>`, `<|`)
+///
+/// # Reference
+///
+/// See: https://nix.dev/manual/nix/2.29/language/operators.html
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord, Copy)]
 pub enum BinaryOperator {
+    /// Attribute selection operator (`.`) - `obj.attr`
     AttributeSelection,
+
+    /// Function application (juxtaposition) - `func arg`
     FunctionApplication,
+
+    /// Has attribute operator (`?`) - `obj ? attr`
     HasAttribute,
+
+    /// List concatenation operator (`++`) - `list1 ++ list2`
     ListConcatenation,
+
+    /// Multiplication operator (`*`) - `a * b`
     Multiplication,
+
+    /// Division operator (`/`) - `a / b`
     Division,
+
+    /// Subtraction operator (`-`) - `a - b`
     Subtraction,
+
+    /// Addition operator (`+`) - `a + b`
     Addition,
+
+    /// Update operator (`//`) - `set1 // set2`
     Update,
+
+    /// Less than operator (`<`) - `a < b`
     Lt,
+
+    /// Less than or equal operator (`<=`) - `a <= b`
     Le,
+
+    /// Greater than operator (`>`) - `a > b`
     Gt,
+
+    /// Greater than or equal operator (`>=`) - `a >= b`
     Ge,
+
+    /// Equality operator (`==`) - `a == b`
     Eq,
+
+    /// Inequality operator (`!=`) - `a != b`
     Ne,
+
+    /// Logical AND operator (`&&`) - `a && b`
     LogicalAnd,
+
+    /// Logical OR operator (`||`) - `a || b`
     LogicalOr,
+
+    /// Logical implication operator (`->`) - `a -> b`
     LogicalImplication,
+
+    /// Left-associative pipe operator (`|>`) - `a |> b`
     LeftAssocPipeOperator,
+
+    /// Right-associative pipe operator (`<|`) - `a <| b`
     RightAssocPipeOperator,
 }
 
 impl BinaryOperator {
+    /// Returns the precedence level of this operator.
+    ///
+    /// Lower numbers indicate higher precedence (tighter binding).
+    /// This follows the Nix language specification for operator precedence.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use nix_ast::expression::BinaryOperator;
+    ///
+    /// assert!(BinaryOperator::Multiplication.precedence() <
+    ///         BinaryOperator::Addition.precedence());
+    /// ```
     pub fn precedence(self) -> u8 {
         match self {
             Self::AttributeSelection => 1,
@@ -138,6 +238,30 @@ impl BinaryOperator {
         }
     }
 
+    /// Attempts to parse a binary operator from a token.
+    ///
+    /// This method examines a token and determines if it represents a binary
+    /// operator. Some tokens (like keywords and delimiters) cannot be binary
+    /// operators, while others default to function application.
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - The token to examine
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(BinaryOperator)` if the token represents a binary operator,
+    /// or `None` if it cannot be used as a binary operator.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use nix_ast::expression::BinaryOperator;
+    /// use nix_lexer::Token;
+    ///
+    /// assert_eq!(BinaryOperator::parse(&Token::Plus), Some(BinaryOperator::Addition));
+    /// assert_eq!(BinaryOperator::parse(&Token::Let), None);
+    /// ```
     pub fn parse(token: &Token<'_>) -> Option<Self> {
         match token {
             Token::Dot => Some(Self::AttributeSelection),
@@ -173,6 +297,35 @@ impl BinaryOperator {
         }
     }
 
+    /// Returns the associativity of this operator.
+    ///
+    /// Associativity determines how operators of the same precedence are
+    /// grouped. Left-associative operators group from left to right,
+    /// right-associative operators group from right to left, and some
+    /// operators (like comparisons) are non-associative.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(BinaryAssociativity::Left)` for left-associative operators
+    /// - `Some(BinaryAssociativity::Right)` for right-associative operators  
+    /// - `None` for non-associative operators
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use nix_ast::expression::{BinaryOperator, BinaryAssociativity};
+    ///
+    /// // Addition is left-associative: a + b + c = (a + b) + c
+    /// assert_eq!(BinaryOperator::Addition.associativity(),
+    ///           Some(BinaryAssociativity::Left));
+    ///
+    /// // Update is right-associative: a // b // c = a // (b // c)
+    /// assert_eq!(BinaryOperator::Update.associativity(),
+    ///           Some(BinaryAssociativity::Right));
+    ///
+    /// // Equality is non-associative: a == b == c is not allowed
+    /// assert_eq!(BinaryOperator::Eq.associativity(), None);
+    /// ```
     pub fn associativity(self) -> Option<BinaryAssociativity> {
         match self {
             Self::AttributeSelection
@@ -199,8 +352,20 @@ impl BinaryOperator {
     }
 }
 
+/// Associativity of binary operators.
+///
+/// This enum determines how operators of the same precedence level are
+/// grouped when they appear in sequence. For example, with left associativity,
+/// `a + b + c` is parsed as `(a + b) + c`, while with right associativity,
+/// `a // b // c` is parsed as `a // (b // c)`.
+///
+/// Some operators (like comparison operators) are non-associative, meaning
+/// expressions like `a == b == c` are not allowed and will result in a
+/// parse error.
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord, Copy)]
 pub enum BinaryAssociativity {
+    /// Left-to-right associativity: `a op b op c` = `(a op b) op c`
     Left,
+    /// Right-to-left associativity: `a op b op c` = `a op (b op c)`
     Right,
 }

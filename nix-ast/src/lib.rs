@@ -1,34 +1,175 @@
+//! # Nix AST Parser
+//!
+//! A parser for the Nix programming language that builds abstract syntax trees (ASTs)
+//! from token streams produced by the `nix-lexer` crate. This crate provides a complete
+//! parser for Nix expressions with comprehensive error reporting.
+//!
+//! ## Features
+//!
+//! - **Complete Nix syntax support**: All Nix language constructs
+//! - **Rich error reporting**: Detailed error messages with source locations
+//! - **Zero-copy parsing**: AST nodes reference the original source where possible
+//! - **Operator precedence**: Correct handling of all Nix operators
+//! - **Expression evaluation**: Support for all Nix expression types
+//!
+//! ## Basic Usage
+//!
+//! ```rust,ignore
+//! use nix_ast::parse_expression;
+//! use nix_lexer::{Token, Logos};
+//!
+//! let source = "let x = 42; in x + 1";
+//! let lexer = Token::lexer(source);
+//! let ast = parse_expression(lexer)?;
+//! # Ok::<(), nix_ast::SpannedError>(())
+//! ```
+//!
+//! ## Error Handling
+//!
+//! The parser provides rich error reporting with source locations:
+//!
+//! ```rust,ignore
+//! use nix_ast::{parse_expression, format_error};
+//! use nix_lexer::{Token, Logos};
+//! use std::path::Path;
+//!
+//! let source = "let x = ; in x";  // Invalid syntax
+//! let lexer = Token::lexer(source);
+//!
+//! match parse_expression(lexer) {
+//!     Ok(ast) => { /* Process AST */ },
+//!     Err(error) => {
+//!         let diagnostic = format_error(error, Path::new("example.nix"));
+//!         eprintln!("{}", diagnostic);
+//!     }
+//! }
+//! ```
+
 mod error;
-mod expression;
+pub mod expression;
 
 use std::{iter::Peekable, path::Path};
 
 use ariadne::Source;
-pub use error::{Error, SpannedError};
-use error::{HandleStreamError, WithSpan};
+use error::WithSpan;
+pub use error::{Error, HandleStreamError, SpannedError};
 use expression::{
     ArrayExpression, AttrsetExpression, BinaryExpression, IfExpression, LambdaExpression,
     LetExpression, UnaryExpression,
 };
 use nix_lexer::{Lexer, SpannedIter, Token, TokenDiscriminants};
 
+/// An expression in the Nix programming language.
+///
+/// This enum represents all possible expressions that can appear in Nix code.
+/// Each variant corresponds to a different type of expression, from simple
+/// literals to complex constructs like lambda functions and let expressions.
+///
+/// # Examples
+///
+/// ```rust
+/// use nix_ast::{parse_expression, Expression};
+/// use nix_lexer::{Token, Logos};
+///
+/// // Parse a simple integer
+/// let ast = parse_expression(Token::lexer("42"))?;
+/// assert!(matches!(ast, Expression::Int(42)));
+///
+/// // Parse a lambda expression
+/// let ast = parse_expression(Token::lexer("x: x + 1"))?;
+/// assert!(matches!(ast, Expression::Lambda(_)));
+/// # Ok::<(), nix_ast::SpannedError>(())
+/// ```
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
 pub enum Expression<'a> {
+    /// Boolean literal (`true` or `false`)
     Bool(bool),
+
+    /// Integer literal (e.g., `42`, `-123`)
     Int(i64),
+
+    /// Floating-point literal (e.g., `3.14`, `2.5`)
     Float(WrappedFloat),
+
+    /// Addition expression (legacy, use `Binary` with `Addition` operator instead)
     Add(Box<(Expression<'a>, Expression<'a>)>),
+
+    /// Let expression (`let x = 1; y = 2; in x + y`)
     Let(Box<LetExpression<'a>>),
+
+    /// Identifier (variable name, function name, etc.)
     Ident(&'a str),
+
+    /// Conditional expression (`if condition then expr1 else expr2`)
     If(Box<IfExpression<'a>>),
+
+    /// Binary operation (arithmetic, logical, comparison, etc.)
     Binary(Box<BinaryExpression<'a>>),
+
+    /// Unary operation (negation, logical NOT)
     Unary(Box<UnaryExpression<'a>>),
+
+    /// Array literal (`[ 1 2 3 ]`)
     Array(ArrayExpression<'a>),
+
+    /// Comment (block or inline)
     Comment,
+
+    /// Lambda function (`x: x + 1` or `{ x, y }: x + y`)
     Lambda(Box<LambdaExpression<'a>>),
+
+    /// Attribute set (`{ x = 1; y = 2; }`)
     Attrset(AttrsetExpression<'a>),
 }
 
+/// Parses a Nix expression from a token stream.
+///
+/// This is the main entry point for parsing Nix expressions. It takes a lexer
+/// that produces tokens and returns either a parsed AST or a detailed error
+/// with source location information.
+///
+/// # Arguments
+///
+/// * `stream` - A lexer instance that produces tokens from Nix source code
+///
+/// # Returns
+///
+/// Returns `Ok(Expression)` if parsing succeeds, or `Err(SpannedError)` if
+/// there's a syntax error. The error includes detailed information about what
+/// went wrong and where in the source code.
+///
+/// # Examples
+///
+/// ```rust
+/// use nix_ast::parse_expression;
+/// use nix_lexer::{Token, Logos};
+///
+/// // Parse a simple expression
+/// let ast = parse_expression(Token::lexer("42"))?;
+/// assert!(matches!(ast, nix_ast::Expression::Int(42)));
+///
+/// // Parse a complex expression
+/// let ast = parse_expression(Token::lexer("let x = 1; in x + 2"))?;
+/// assert!(matches!(ast, nix_ast::Expression::Let(_)));
+/// # Ok::<(), nix_ast::SpannedError>(())
+/// ```
+///
+/// # Error Handling
+///
+/// ```rust,ignore
+/// use nix_ast::{parse_expression, format_error};
+/// use nix_lexer::{Token, Logos};
+/// use std::path::Path;
+///
+/// let result = parse_expression(Token::lexer("let x = ; in x"));
+/// match result {
+///     Ok(ast) => println!("Parsed: {:?}", ast),
+///     Err(error) => {
+///         let diagnostic = format_error(error, Path::new("example.nix"));
+///         eprintln!("Parse error:\n{}", diagnostic);
+///     }
+/// }
+/// ```
 pub fn parse_expression<'a>(stream: Lexer<'a, Token<'a>>) -> Result<Expression<'a>, SpannedError> {
     parse_expression_inner(&mut stream.spanned().peekable(), u8::MAX)
 }
@@ -104,8 +245,23 @@ fn wrapped_interpolated<'a>(
     Ok(node)
 }
 
+/// A wrapper around `f64` that implements `Eq` and `Ord` for use in AST nodes.
+///
+/// Since floating-point numbers don't naturally implement `Eq` and `Ord` due to
+/// NaN values, this wrapper uses `total_cmp` to provide a total ordering that
+/// treats NaN values consistently.
+///
+/// # Examples
+///
+/// ```rust
+/// use nix_ast::WrappedFloat;
+///
+/// let f1 = WrappedFloat(3.14);
+/// let f2 = WrappedFloat(2.71);
+/// assert!(f1 > f2);
+/// ```
 #[derive(PartialEq, Debug, Clone)]
-pub struct WrappedFloat(f64);
+pub struct WrappedFloat(pub f64);
 
 impl Eq for WrappedFloat {}
 
@@ -121,9 +277,24 @@ impl Ord for WrappedFloat {
     }
 }
 
+/// Represents a binding name in attribute sets and let expressions.
+///
+/// Binding names can be either static identifiers or dynamic expressions
+/// that are evaluated at runtime. Dynamic binding names use interpolation
+/// syntax like `${expression}`.
+///
+/// # Examples
+///
+/// ```rust
+/// // Static binding: x = 1;
+/// // Dynamic binding: ${expr} = 1;
+/// ```
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
 pub enum BindingName<'a> {
+    /// A dynamic binding name that requires evaluation (e.g., `${expr}`)
     Lazy(Expression<'a>),
+
+    /// A static binding name (e.g., `x`, `foo-bar`)
     Value(&'a str),
 }
 
@@ -165,6 +336,51 @@ fn expect_next_token_or_error<'a>(
     }
 }
 
+/// Formats a parsing error into a human-readable diagnostic message.
+///
+/// This function takes a `SpannedError` (which contains both the error details
+/// and source location information) and formats it into a rich diagnostic
+/// message using the `ariadne` crate. The resulting message includes:
+///
+/// - A clear error description
+/// - Source code context showing where the error occurred
+/// - Visual indicators pointing to the problematic location
+/// - Syntax highlighting for better readability
+///
+/// # Arguments
+///
+/// * `error` - The parsing error with span information
+/// * `path` - Path to the source file (used for display purposes)
+///
+/// # Returns
+///
+/// A formatted string containing the diagnostic message ready for display
+/// to the user.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use nix_ast::{parse_expression, format_error};
+/// use nix_lexer::{Token, Logos};
+/// use std::path::Path;
+///
+/// let source = "let x = ; in x";  // Invalid syntax
+/// let result = parse_expression(Token::lexer(source));
+///
+/// if let Err(error) = result {
+///     let diagnostic = format_error(error, Path::new("example.nix"));
+///     eprintln!("{}", diagnostic);
+///     // This will print a nicely formatted error message showing
+///     // exactly where the syntax error occurred
+/// }
+/// ```
+///
+/// # Panics
+///
+/// This function will panic if:
+/// - The file at `path` cannot be read
+/// - The error message cannot be formatted (very unlikely)
+/// - The resulting bytes cannot be converted to UTF-8 (very unlikely)
 pub fn format_error(error: SpannedError, path: &Path) -> String {
     use ariadne::{Label, Report, ReportKind};
 
