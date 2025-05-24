@@ -1,8 +1,11 @@
 use std::iter::Peekable;
 
-use nix_lexer::{Lexer, Token, TokenDiscriminants};
+use nix_lexer::{SpannedIter, Token, TokenDiscriminants};
 
-use crate::{Error, Expression, expect_next_token_or_error, parse_expression_inner};
+use crate::{
+    Error, Expression, HandleStreamError, SpannedError, expect_next_token_or_error,
+    parse_expression_inner,
+};
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
 pub struct BinaryExpression<'a> {
@@ -14,12 +17,12 @@ pub struct BinaryExpression<'a> {
 
 impl<'a> BinaryExpression<'a> {
     pub fn parse(
-        stream: &mut Peekable<Lexer<'a, Token<'a>>>,
+        stream: &mut Peekable<SpannedIter<'a, Token<'a>>>,
         min_prec: u8,
-    ) -> Result<Option<(BinaryOperator, Expression<'a>, Option<Expression<'a>>)>, Error> {
-        let token = match stream.peek() {
-            Some(Ok(tok)) => tok,
-            Some(Err(())) => panic!(),
+    ) -> Result<Option<(BinaryOperator, Expression<'a>, Option<Expression<'a>>)>, SpannedError>
+    {
+        let (token, _) = match stream.peek() {
+            Some(token) => token.span_error()?,
             None => return Ok(None),
         };
 
@@ -51,7 +54,7 @@ impl<'a> BinaryExpression<'a> {
 
         let postfix = match operator {
             BinaryOperator::AttributeSelection => {
-                if let Some(Ok(Token::TextOr)) = stream.peek() {
+                if let Some((Ok(Token::TextOr), _)) = stream.peek() {
                     stream.next();
                     Some(parse_expression_inner(stream, next_prec)?)
                 } else {
@@ -66,18 +69,18 @@ impl<'a> BinaryExpression<'a> {
 }
 
 fn parse_binary_expression<'a>(
-    stream: &mut Peekable<Lexer<'a, Token<'a>>>,
+    stream: &mut Peekable<SpannedIter<'a, Token<'a>>>,
     next_prec: u8,
-) -> Result<Expression<'a>, Error> {
-    match stream.next() {
-        Some(Ok(Token::Ident(v))) => Ok(Expression::Ident(v)),
-        Some(Ok(Token::InterpolationStart)) => {
+) -> Result<Expression<'a>, SpannedError> {
+    match stream.next().span_error()? {
+        (Token::Ident(v), _) => Ok(Expression::Ident(v)),
+        (Token::InterpolationStart, _) => {
             let expr = parse_expression_inner(stream, next_prec)?;
             expect_next_token_or_error(stream, TokenDiscriminants::BraceClose)?;
             Ok(expr)
         }
-        Some(Ok(Token::String(_))) => todo!(),
-        Some(Ok(v)) => Err(Error::UnexpectedToken(
+        (Token::String(_), _) => todo!(),
+        (v, span) => Err(Error::UnexpectedToken(
             v.into(),
             vec![
                 TokenDiscriminants::Ident,
@@ -85,9 +88,8 @@ fn parse_binary_expression<'a>(
                 TokenDiscriminants::String,
                 TokenDiscriminants::Or,
             ],
-        )),
-        Some(Err(())) => panic!(),
-        None => Err(Error::UnexpectedEndOfFile),
+        )
+        .with_span(span)),
     }
 }
 

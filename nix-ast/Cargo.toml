@@ -12,6 +12,7 @@ categories = ["parser-implementations"]
 [dependencies]
 nix-lexer = { path = "../nix-lexer" }
 thiserror = "2"
+ariadne = "0.5"
 
 [dev-dependencies]
 insta = { version = "1.43", features = ["glob"] }

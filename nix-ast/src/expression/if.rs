@@ -1,8 +1,8 @@
 use std::iter::Peekable;
 
-use nix_lexer::{Lexer, Token, TokenDiscriminants};
+use nix_lexer::{SpannedIter, Token, TokenDiscriminants};
 
-use crate::{Error, Expression, expect_next_token_or_error, parse_expression_inner};
+use crate::{Expression, SpannedError, expect_next_token_or_error, parse_expression_inner};
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
 pub struct IfExpression<'a> {
@@ -12,7 +12,9 @@ pub struct IfExpression<'a> {
 }
 
 impl<'a> IfExpression<'a> {
-    pub fn parse(stream: &mut Peekable<Lexer<'a, Token<'a>>>) -> Result<IfExpression<'a>, Error> {
+    pub fn parse(
+        stream: &mut Peekable<SpannedIter<'a, Token<'a>>>,
+    ) -> Result<IfExpression<'a>, SpannedError> {
         let condition = parse_expression_inner(stream, u8::MAX)?;
         expect_next_token_or_error(stream, TokenDiscriminants::Then)?;
         let then = parse_expression_inner(stream, u8::MAX)?;

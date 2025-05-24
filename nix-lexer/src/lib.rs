@@ -1,4 +1,4 @@
-pub use logos::{Lexer, Logos};
+pub use logos::{Lexer, Logos, Span, SpannedIter};
 use memchr::{memchr2_iter, memchr3_iter};
 use strum::{EnumDiscriminants, EnumMessage, EnumString};
 

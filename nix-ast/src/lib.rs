@@ -1,16 +1,16 @@
+mod error;
 mod expression;
 
-use std::{
-    iter::Peekable,
-    num::{ParseFloatError, ParseIntError},
-};
+use std::{iter::Peekable, path::Path};
 
+use ariadne::Source;
+pub use error::{Error, SpannedError};
+use error::{HandleStreamError, WithSpan};
 use expression::{
     ArrayExpression, AttrsetExpression, BinaryExpression, IfExpression, LambdaExpression,
     LetExpression, UnaryExpression,
 };
-use nix_lexer::{Lexer, Token, TokenDiscriminants};
-use thiserror::Error;
+use nix_lexer::{Lexer, SpannedIter, Token, TokenDiscriminants};
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
 pub enum Expression<'a> {
@@ -29,32 +29,14 @@ pub enum Expression<'a> {
     Attrset(AttrsetExpression<'a>),
 }
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("Unexpected end of file")]
-    UnexpectedEndOfFile,
-    #[error("Unexpected token {0:?}")]
-    UnexpectedTopLevelToken(TokenDiscriminants),
-    #[error("Unexpected token {0:?} expected one of {1:?}")]
-    UnexpectedToken(TokenDiscriminants, Vec<TokenDiscriminants>),
-    #[error("Invalid integer: {0}")]
-    ParseInt(#[from] ParseIntError),
-    #[error("Invalid float: {0}")]
-    ParseFloat(#[from] ParseFloatError),
-    #[error("Duplicate formal function argument: {0}")]
-    DuplicateFunctionArgument(String),
-    #[error("Attribute `{0}` already defined")]
-    AttributeAlreadyDefined(String),
-}
-
-pub fn parse_expression<'a>(stream: Lexer<'a, Token<'a>>) -> Result<Expression<'a>, Error> {
-    parse_expression_inner(&mut stream.peekable(), u8::MAX)
+pub fn parse_expression<'a>(stream: Lexer<'a, Token<'a>>) -> Result<Expression<'a>, SpannedError> {
+    parse_expression_inner(&mut stream.spanned().peekable(), u8::MAX)
 }
 
 fn parse_expression_inner<'a>(
-    stream: &mut Peekable<Lexer<'a, Token<'a>>>,
+    stream: &mut Peekable<SpannedIter<'a, Token<'a>>>,
     min_prec: u8,
-) -> Result<Expression<'a>, Error> {
+) -> Result<Expression<'a>, SpannedError> {
     let mut left = if let Some(expr) = UnaryExpression::parse(stream)? {
         Expression::Unary(Box::new(expr))
     } else if let Some(lambda) = LambdaExpression::parse(stream)? {
@@ -79,15 +61,21 @@ fn parse_expression_inner<'a>(
     Ok(left)
 }
 
-fn parse_primary<'a>(stream: &mut Peekable<Lexer<'a, Token<'a>>>) -> Result<Expression<'a>, Error> {
-    let token = stream.next().ok_or(Error::UnexpectedEndOfFile)?.unwrap();
+fn parse_primary<'a>(
+    stream: &mut Peekable<SpannedIter<'a, Token<'a>>>,
+) -> Result<Expression<'a>, SpannedError> {
+    let (token, span) = stream.next().span_error()?;
 
     match token {
         Token::Bool(v) => Ok(Expression::Bool(v)),
         Token::Let => Ok(Expression::Let(Box::new(LetExpression::parse(stream)?))),
         Token::If => Ok(Expression::If(Box::new(IfExpression::parse(stream)?))),
-        Token::Int(v) => Ok(Expression::Int(v.parse()?)),
-        Token::Float(v) => Ok(Expression::Float(WrappedFloat(v.parse()?))),
+        Token::Int(v) => Ok(Expression::Int(
+            v.parse().map_err(Error::ParseInt).with_span(span)?,
+        )),
+        Token::Float(v) => Ok(Expression::Float(WrappedFloat(
+            v.parse().map_err(Error::ParseFloat).with_span(span)?,
+        ))),
         Token::Ident(v) => Ok(Expression::Ident(v)),
         Token::BracketOpen => wrapped_interpolated(stream, TokenDiscriminants::BracketClose),
         Token::InterpolationStart => wrapped_interpolated(stream, TokenDiscriminants::BraceClose),
@@ -103,14 +91,14 @@ fn parse_primary<'a>(stream: &mut Peekable<Lexer<'a, Token<'a>>>) -> Result<Expr
         Token::Throw => todo!("throw"),
         Token::Path(_) => todo!("path"),
         Token::BlockComment | Token::InlineComment => Ok(Expression::Comment),
-        v => Err(Error::UnexpectedTopLevelToken(v.into())),
+        v => Err(Error::UnexpectedTopLevelToken(v.into()).with_span(span)),
     }
 }
 
 fn wrapped_interpolated<'a>(
-    stream: &mut Peekable<Lexer<'a, Token<'a>>>,
+    stream: &mut Peekable<SpannedIter<'a, Token<'a>>>,
     end: TokenDiscriminants,
-) -> Result<Expression<'a>, Error> {
+) -> Result<Expression<'a>, SpannedError> {
     let node = parse_expression_inner(stream, u8::MAX)?;
     expect_next_token_or_error(stream, end)?;
     Ok(node)
@@ -140,19 +128,19 @@ pub enum BindingName<'a> {
 }
 
 fn parse_binding_name<'a>(
-    stream: &mut Peekable<Lexer<'a, Token<'a>>>,
-) -> Result<Vec<BindingName<'a>>, Error> {
+    stream: &mut Peekable<SpannedIter<'a, Token<'a>>>,
+) -> Result<Vec<BindingName<'a>>, SpannedError> {
     let mut name = Vec::new();
 
     loop {
-        match stream.next() {
-            Some(Ok(Token::Ident(ident))) => name.push(BindingName::Value(ident)),
-            Some(Ok(Token::InterpolationStart)) => {
+        match stream.next().span_error()? {
+            (Token::Ident(ident), _) => name.push(BindingName::Value(ident)),
+            (Token::InterpolationStart, _) => {
                 name.push(BindingName::Lazy(parse_expression_inner(stream, u8::MAX)?));
                 expect_next_token_or_error(stream, TokenDiscriminants::BraceClose)?;
             }
-            Some(Ok(Token::Equals)) => return Ok(name),
-            Some(Ok(token)) => {
+            (Token::Equals, _) => return Ok(name),
+            (token, span) => {
                 return Err(Error::UnexpectedToken(
                     token.into(),
                     vec![
@@ -160,34 +148,49 @@ fn parse_binding_name<'a>(
                         TokenDiscriminants::InterpolationStart,
                         TokenDiscriminants::Equals,
                     ],
-                ));
+                )
+                .with_span(span));
             }
-            Some(Err(())) => panic!(),
-            None => return Err(Error::UnexpectedEndOfFile),
         }
     }
 }
 
 fn expect_next_token_or_error<'a>(
-    stream: &mut Peekable<Lexer<'a, Token<'a>>>,
+    stream: &mut Peekable<SpannedIter<'a, Token<'a>>>,
     kind: TokenDiscriminants,
-) -> Result<(), Error> {
-    match stream.next() {
-        Some(Ok(v)) if TokenDiscriminants::from(&v) == kind => Ok(()),
-        Some(Ok(v)) => Err(Error::UnexpectedToken(v.into(), vec![kind])),
-        Some(Err(())) => panic!(),
-        None => Err(Error::UnexpectedEndOfFile),
+) -> Result<(), SpannedError> {
+    match stream.next().span_error()? {
+        (v, _) if TokenDiscriminants::from(&v) == kind => Ok(()),
+        (v, span) => Err(Error::UnexpectedToken(v.into(), vec![kind]).with_span(span)),
     }
+}
+
+pub fn format_error(error: SpannedError, path: &Path) -> String {
+    use ariadne::{Label, Report, ReportKind};
+
+    let mut out = Vec::new();
+
+    Report::build(ReportKind::Error, error.span.clone())
+        .with_message("Syntax error")
+        .with_label(Label::new(error.span).with_message(error.error))
+        .finish()
+        .write_for_stdout(
+            Source::from(std::fs::read_to_string(path).unwrap()),
+            &mut out,
+        )
+        .unwrap();
+
+    String::from_utf8(out).unwrap()
 }
 
 #[cfg(test)]
 mod test {
     use std::fs::read_to_string;
 
-    use insta::{assert_debug_snapshot, glob};
+    use insta::{assert_debug_snapshot, assert_snapshot, glob};
     use nix_lexer::Logos as _;
 
-    use crate::parse_expression;
+    use crate::{format_error, parse_expression};
 
     #[test]
     fn fixtures() {
@@ -196,8 +199,37 @@ mod test {
             let lex = nix_lexer::Token::lexer(&input);
             match parse_expression(lex) {
                 Ok(v) => assert_debug_snapshot!("fixture", v, &input),
-                Err(e) => assert_debug_snapshot!("fixture", e, &input),
+                Err(e) => {
+                    assert_snapshot!("fixture", strip_ansi_codes(&format_error(e, path)), &input)
+                }
             }
         });
+    }
+
+    fn strip_ansi_codes(input: &str) -> String {
+        let mut output = String::new();
+        let mut chars = input.chars().peekable();
+
+        while let Some(c) = chars.next() {
+            if c == '\x1b' {
+                if chars.peek() == Some(&'[') {
+                    chars.next(); // Skip '['
+
+                    // Skip all characters until a letter (end of ANSI sequence)
+                    while let Some(&next) = chars.peek() {
+                        if next.is_ascii_alphabetic() {
+                            chars.next(); // consume the letter
+                            break;
+                        } else {
+                            chars.next(); // skip numeric or separator
+                        }
+                    }
+                }
+            } else {
+                output.push(c);
+            }
+        }
+
+        output
     }
 }
