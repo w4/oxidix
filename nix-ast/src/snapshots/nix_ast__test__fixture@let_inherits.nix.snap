@@ -1,0 +1,69 @@
+---
+source: nix-ast/src/lib.rs
+expression: "x: let\n  inherit (x) y;\n  inherit x;\n  z = 7;\nin y + z + x.y\n"
+input_file: nix-ast/fixtures/let_inherits.nix
+---
+Lambda(
+    LambdaExpression {
+        parameters: Named(
+            "x",
+        ),
+        body: Let(
+            LetExpression {
+                bindings: {
+                    [
+                        Value(
+                            "x",
+                        ),
+                    ]: Ident(
+                        "x",
+                    ),
+                    [
+                        Value(
+                            "y",
+                        ),
+                    ]: Ident(
+                        "x",
+                    ),
+                    [
+                        Value(
+                            "z",
+                        ),
+                    ]: Int(
+                        7,
+                    ),
+                },
+                inner: Binary(
+                    BinaryExpression {
+                        operator: Addition,
+                        left: Binary(
+                            BinaryExpression {
+                                operator: Addition,
+                                left: Ident(
+                                    "y",
+                                ),
+                                right: Ident(
+                                    "z",
+                                ),
+                                postfix: None,
+                            },
+                        ),
+                        right: Binary(
+                            BinaryExpression {
+                                operator: AttributeSelection,
+                                left: Ident(
+                                    "x",
+                                ),
+                                right: Ident(
+                                    "y",
+                                ),
+                                postfix: None,
+                            },
+                        ),
+                        postfix: None,
+                    },
+                ),
+            },
+        ),
+    },
+)

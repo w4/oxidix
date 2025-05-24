@@ -7,6 +7,8 @@ use crate::{
     parse_expression_inner,
 };
 
+use super::attrset::parse_inherits;
+
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
 pub struct LetExpression<'a> {
     pub bindings: BTreeMap<Vec<BindingName<'a>>, Expression<'a>>,
@@ -17,7 +19,6 @@ impl<'a> LetExpression<'a> {
     pub fn parse(stream: &mut Peekable<Lexer<'a, Token<'a>>>) -> Result<LetExpression<'a>, Error> {
         let mut bindings = BTreeMap::new();
 
-        // TODO: inherit
         let inner = loop {
             match stream.peek() {
                 Some(Ok(Token::In)) => {
@@ -29,6 +30,9 @@ impl<'a> LetExpression<'a> {
                     let value = parse_expression_inner(stream, u8::MAX)?;
                     expect_next_token_or_error(stream, TokenDiscriminants::Semicolon)?;
                     bindings.insert(name, value);
+                }
+                Some(Ok(Token::Inherit)) => {
+                    parse_inherits(stream, &mut bindings)?;
                 }
                 Some(Ok(token)) => {
                     return Err(Error::UnexpectedToken(
