@@ -6,8 +6,8 @@ use std::{
 };
 
 use expression::{
-    ArrayExpression, BinaryExpression, IfExpression, LambdaExpression, LetExpression,
-    UnaryExpression,
+    ArrayExpression, AttrsetExpression, BinaryExpression, IfExpression, LambdaExpression,
+    LetExpression, UnaryExpression,
 };
 use nix_lexer::{Lexer, Token, TokenDiscriminants};
 use thiserror::Error;
@@ -26,6 +26,7 @@ pub enum Expression<'a> {
     Array(ArrayExpression<'a>),
     Comment,
     Lambda(Box<LambdaExpression<'a>>),
+    Attrset(AttrsetExpression<'a>),
 }
 
 #[derive(Error, Debug)]
@@ -42,6 +43,8 @@ pub enum Error {
     ParseFloat(#[from] ParseFloatError),
     #[error("Duplicate formal function argument: {0}")]
     DuplicateFunctionArgument(String),
+    #[error("Attribute `{0}` already defined")]
+    AttributeAlreadyDefined(String),
 }
 
 pub fn parse_expression<'a>(stream: Lexer<'a, Token<'a>>) -> Result<Expression<'a>, Error> {
@@ -89,17 +92,15 @@ fn parse_primary<'a>(stream: &mut Peekable<Lexer<'a, Token<'a>>>) -> Result<Expr
         Token::BracketOpen => wrapped_interpolated(stream, TokenDiscriminants::BracketClose),
         Token::InterpolationStart => wrapped_interpolated(stream, TokenDiscriminants::BraceClose),
         Token::SquareBracketOpen => Ok(Expression::Array(ArrayExpression::parse(stream)?)),
-        Token::BraceOpen => todo!("bo"),
-        Token::BraceClose => todo!("bc"),
-        Token::Inherit => todo!("inherit"),
-        Token::Rec => todo!("rec"),
-        Token::Question => todo!("quest"),
+        Token::BraceOpen => Ok(Expression::Attrset(AttrsetExpression::parse(stream)?)),
+        Token::Rec => Ok(Expression::Attrset(AttrsetExpression {
+            recursive: true,
+            ..AttrsetExpression::parse(stream)?
+        })),
         Token::Dollar => todo!("dollar"),
         Token::String(_string_tokens) => todo!("str"),
         Token::MultilineString(_string_tokens) => todo!("multi"),
         Token::Throw => todo!("throw"),
-        Token::At => todo!("at"),
-        Token::Asterisk => todo!("aster"),
         Token::Path(_) => todo!("path"),
         Token::BlockComment | Token::InlineComment => Ok(Expression::Comment),
         v => Err(Error::UnexpectedTopLevelToken(v.into())),

@@ -1,0 +1,40 @@
+---
+source: nix-ast/src/lib.rs
+expression: "x: {\n  inherit (x) y;\n  inherit x;\n  z = 5;\n}\n"
+input_file: nix-ast/fixtures/attrset.nix
+---
+Lambda(
+    LambdaExpression {
+        parameters: Named(
+            "x",
+        ),
+        body: Attrset(
+            AttrsetExpression {
+                recursive: false,
+                bindings: {
+                    [
+                        Value(
+                            "x",
+                        ),
+                    ]: Ident(
+                        "x",
+                    ),
+                    [
+                        Value(
+                            "y",
+                        ),
+                    ]: Ident(
+                        "x",
+                    ),
+                    [
+                        Value(
+                            "z",
+                        ),
+                    ]: Int(
+                        5,
+                    ),
+                },
+            },
+        ),
+    },
+)

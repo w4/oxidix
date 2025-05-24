@@ -17,6 +17,7 @@ impl<'a> LetExpression<'a> {
     pub fn parse(stream: &mut Peekable<Lexer<'a, Token<'a>>>) -> Result<LetExpression<'a>, Error> {
         let mut bindings = BTreeMap::new();
 
+        // TODO: inherit
         let inner = loop {
             match stream.peek() {
                 Some(Ok(Token::In)) => {
