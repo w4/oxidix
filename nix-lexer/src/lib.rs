@@ -41,6 +41,8 @@ pub enum Token<'a> {
     Gt,
     #[token("||")]
     Or,
+    #[token("or")]
+    TextOr,
     #[token("&&")]
     And,
     #[token(";")]

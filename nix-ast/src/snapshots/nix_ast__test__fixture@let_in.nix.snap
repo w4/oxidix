@@ -1,0 +1,46 @@
+---
+source: nix-ast/src/lib.rs
+expression: "let y = 5; n = (y + 2) * 5; in n\n"
+input_file: nix-ast/fixtures/let_in.nix
+---
+Let(
+    LetExpression {
+        bindings: {
+            [
+                Value(
+                    "n",
+                ),
+            ]: Binary(
+                BinaryExpression {
+                    operator: Multiplication,
+                    left: Binary(
+                        BinaryExpression {
+                            operator: Addition,
+                            left: Ident(
+                                "y",
+                            ),
+                            right: Int(
+                                2,
+                            ),
+                            postfix: None,
+                        },
+                    ),
+                    right: Int(
+                        5,
+                    ),
+                    postfix: None,
+                },
+            ),
+            [
+                Value(
+                    "y",
+                ),
+            ]: Int(
+                5,
+            ),
+        },
+        inner: Ident(
+            "n",
+        ),
+    },
+)

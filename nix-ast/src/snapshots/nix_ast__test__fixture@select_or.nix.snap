@@ -1,0 +1,53 @@
+---
+source: nix-ast/src/lib.rs
+expression: "let a = null; in a.b.c or 5\n"
+input_file: nix-ast/fixtures/select_or.nix
+---
+Let(
+    LetExpression {
+        bindings: {
+            [
+                Value(
+                    "a",
+                ),
+            ]: Ident(
+                "null",
+            ),
+        },
+        inner: Binary(
+            BinaryExpression {
+                operator: AttributeSelection,
+                left: Ident(
+                    "a",
+                ),
+                right: Binary(
+                    BinaryExpression {
+                        operator: AttributeSelection,
+                        left: Ident(
+                            "b",
+                        ),
+                        right: Binary(
+                            BinaryExpression {
+                                operator: FunctionApplication,
+                                left: Binary(
+                                    BinaryExpression {
+                                        operator: FunctionApplication,
+                                        left: Ident(
+                                            "c",
+                                        ),
+                                        right: Ident(
+                                            "or",
+                                        ),
+                                    },
+                                ),
+                                right: Int(
+                                    5,
+                                ),
+                            },
+                        ),
+                    },
+                ),
+            },
+        ),
+    },
+)

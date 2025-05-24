@@ -1,0 +1,70 @@
+---
+source: nix-ast/src/lib.rs
+expression: "{ x, y ? 5 + 3, n }: x + y * n\n"
+input_file: nix-ast/fixtures/lambda_set.nix
+---
+Lambda(
+    LambdaExpression {
+        parameters: Set(
+            LambdaParametersSet {
+                inner: {
+                    [
+                        Value(
+                            "n",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                    [
+                        Value(
+                            "x",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                    [
+                        Value(
+                            "y",
+                        ),
+                    ]: LambdaParameter {
+                        default: Some(
+                            Binary(
+                                BinaryExpression {
+                                    operator: Addition,
+                                    left: Int(
+                                        5,
+                                    ),
+                                    right: Int(
+                                        3,
+                                    ),
+                                    postfix: None,
+                                },
+                            ),
+                        ),
+                    },
+                },
+            },
+        ),
+        body: Binary(
+            BinaryExpression {
+                operator: Addition,
+                left: Ident(
+                    "x",
+                ),
+                right: Binary(
+                    BinaryExpression {
+                        operator: Multiplication,
+                        left: Ident(
+                            "y",
+                        ),
+                        right: Ident(
+                            "n",
+                        ),
+                        postfix: None,
+                    },
+                ),
+                postfix: None,
+            },
+        ),
+    },
+)

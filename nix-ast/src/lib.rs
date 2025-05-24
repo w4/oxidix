@@ -5,7 +5,10 @@ use std::{
     num::{ParseFloatError, ParseIntError},
 };
 
-use expression::{ArrayExpression, BinaryExpression, IfExpression, LetExpression, UnaryExpression};
+use expression::{
+    ArrayExpression, BinaryExpression, IfExpression, LambdaExpression, LetExpression,
+    UnaryExpression,
+};
 use nix_lexer::{Lexer, Token, TokenDiscriminants};
 use thiserror::Error;
 
@@ -22,6 +25,7 @@ pub enum Expression<'a> {
     Unary(Box<UnaryExpression<'a>>),
     Array(ArrayExpression<'a>),
     Comment,
+    Lambda(Box<LambdaExpression<'a>>),
 }
 
 #[derive(Error, Debug)]
@@ -48,12 +52,14 @@ fn parse_expression_inner<'a>(
 ) -> Result<Expression<'a>, Error> {
     let mut left = if let Some(expr) = UnaryExpression::parse(stream)? {
         Expression::Unary(Box::new(expr))
+    } else if let Some(lambda) = LambdaExpression::parse(stream)? {
+        Expression::Lambda(Box::new(lambda))
     } else {
         parse_primary(stream)?
     };
 
     loop {
-        let Some((operator, right)) = BinaryExpression::parse(stream, min_prec)? else {
+        let Some((operator, right, postfix)) = BinaryExpression::parse(stream, min_prec)? else {
             break;
         };
 
@@ -61,6 +67,7 @@ fn parse_expression_inner<'a>(
             operator,
             left,
             right,
+            postfix,
         }));
     }
 
@@ -95,8 +102,8 @@ fn parse_primary<'a>(stream: &mut Peekable<Lexer<'a, Token<'a>>>) -> Result<Expr
         Token::Rec => todo!("rec"),
         Token::Question => todo!("quest"),
         Token::Dollar => todo!("dollar"),
-        Token::String(string_tokens) => todo!("str"),
-        Token::MultilineString(string_tokens) => todo!("multi"),
+        Token::String(_string_tokens) => todo!("str"),
+        Token::MultilineString(_string_tokens) => todo!("multi"),
         Token::Throw => todo!("throw"),
         Token::At => todo!("at"),
         Token::Asterisk => todo!("aster"),
@@ -106,10 +113,16 @@ fn parse_primary<'a>(stream: &mut Peekable<Lexer<'a, Token<'a>>>) -> Result<Expr
     }
 }
 
-#[derive(PartialEq, Debug, Clone, PartialOrd)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct WrappedFloat(f64);
 
 impl Eq for WrappedFloat {}
+
+impl PartialOrd for WrappedFloat {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 impl Ord for WrappedFloat {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
@@ -166,35 +179,20 @@ fn expect_next_token_or_error<'a>(
 
 #[cfg(test)]
 mod test {
+    use std::fs::read_to_string;
+
+    use insta::{assert_debug_snapshot, glob};
     use nix_lexer::Logos as _;
 
     use crate::parse_expression;
 
     #[test]
-    fn operator() {
-        let lex = nix_lexer::Token::lexer("[(1 + 2 + 3) 5]");
-        let actual = parse_expression(lex).unwrap();
-        panic!("{actual:#?}");
-    }
-
-    #[test]
-    fn complex_operator_precedence() {
-        let lex = nix_lexer::Token::lexer("1 + 2 * 3 == 7");
-        let actual = parse_expression(lex).unwrap();
-        panic!("{actual:#?}");
-    }
-
-    #[test]
-    fn let_in() {
-        let lex = nix_lexer::Token::lexer("let x = 5; in x");
-        let actual = parse_expression(lex).unwrap();
-        panic!("{actual:#?}");
-    }
-
-    #[test]
-    fn if_statement() {
-        let lex = nix_lexer::Token::lexer("if true then 1 else 2");
-        let actual = parse_expression(lex).unwrap();
-        panic!("{actual:#?}");
+    fn fixtures() {
+        glob!("../fixtures", "*.nix", |path| {
+            let input = read_to_string(path).expect("failed to read fixture");
+            let lex = nix_lexer::Token::lexer(&input);
+            let actual = parse_expression(lex).unwrap();
+            assert_debug_snapshot!("fixture", actual, &input);
+        });
     }
 }

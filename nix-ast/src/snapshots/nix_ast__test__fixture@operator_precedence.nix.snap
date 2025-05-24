@@ -1,0 +1,183 @@
+---
+source: nix-ast/src/lib.rs
+expression: "{a, c, d, e, f, g, i, j, k, l }: a.b c - -d ++ e * f + g // i && j -> k |> l\n"
+input_file: nix-ast/fixtures/operator_precedence.nix
+---
+Lambda(
+    LambdaExpression {
+        parameters: Set(
+            LambdaParametersSet {
+                inner: {
+                    [
+                        Value(
+                            "a",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                    [
+                        Value(
+                            "c",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                    [
+                        Value(
+                            "d",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                    [
+                        Value(
+                            "e",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                    [
+                        Value(
+                            "f",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                    [
+                        Value(
+                            "g",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                    [
+                        Value(
+                            "i",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                    [
+                        Value(
+                            "j",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                    [
+                        Value(
+                            "k",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                    [
+                        Value(
+                            "l",
+                        ),
+                    ]: LambdaParameter {
+                        default: None,
+                    },
+                },
+            },
+        ),
+        body: Binary(
+            BinaryExpression {
+                operator: LeftAssocPipeOperator,
+                left: Binary(
+                    BinaryExpression {
+                        operator: LogicalImplication,
+                        left: Binary(
+                            BinaryExpression {
+                                operator: LogicalAnd,
+                                left: Binary(
+                                    BinaryExpression {
+                                        operator: Update,
+                                        left: Binary(
+                                            BinaryExpression {
+                                                operator: Addition,
+                                                left: Binary(
+                                                    BinaryExpression {
+                                                        operator: Subtraction,
+                                                        left: Binary(
+                                                            BinaryExpression {
+                                                                operator: FunctionApplication,
+                                                                left: Binary(
+                                                                    BinaryExpression {
+                                                                        operator: AttributeSelection,
+                                                                        left: Ident(
+                                                                            "a",
+                                                                        ),
+                                                                        right: Ident(
+                                                                            "b",
+                                                                        ),
+                                                                        postfix: None,
+                                                                    },
+                                                                ),
+                                                                right: Ident(
+                                                                    "c",
+                                                                ),
+                                                                postfix: None,
+                                                            },
+                                                        ),
+                                                        right: Binary(
+                                                            BinaryExpression {
+                                                                operator: Multiplication,
+                                                                left: Binary(
+                                                                    BinaryExpression {
+                                                                        operator: ListConcatenation,
+                                                                        left: Unary(
+                                                                            UnaryExpression {
+                                                                                operator: ArithmeticNegation,
+                                                                                expression: Ident(
+                                                                                    "d",
+                                                                                ),
+                                                                            },
+                                                                        ),
+                                                                        right: Ident(
+                                                                            "e",
+                                                                        ),
+                                                                        postfix: None,
+                                                                    },
+                                                                ),
+                                                                right: Ident(
+                                                                    "f",
+                                                                ),
+                                                                postfix: None,
+                                                            },
+                                                        ),
+                                                        postfix: None,
+                                                    },
+                                                ),
+                                                right: Ident(
+                                                    "g",
+                                                ),
+                                                postfix: None,
+                                            },
+                                        ),
+                                        right: Ident(
+                                            "i",
+                                        ),
+                                        postfix: None,
+                                    },
+                                ),
+                                right: Ident(
+                                    "j",
+                                ),
+                                postfix: None,
+                            },
+                        ),
+                        right: Ident(
+                            "k",
+                        ),
+                        postfix: None,
+                    },
+                ),
+                right: Ident(
+                    "l",
+                ),
+                postfix: None,
+            },
+        ),
+    },
+)

@@ -1,0 +1,31 @@
+---
+source: nix-ast/src/lib.rs
+expression: "x: y: x + y\n"
+input_file: nix-ast/fixtures/lambda_basic.nix
+---
+Lambda(
+    LambdaExpression {
+        parameters: Named(
+            "x",
+        ),
+        body: Lambda(
+            LambdaExpression {
+                parameters: Named(
+                    "y",
+                ),
+                body: Binary(
+                    BinaryExpression {
+                        operator: Addition,
+                        left: Ident(
+                            "x",
+                        ),
+                        right: Ident(
+                            "y",
+                        ),
+                        postfix: None,
+                    },
+                ),
+            },
+        ),
+    },
+)

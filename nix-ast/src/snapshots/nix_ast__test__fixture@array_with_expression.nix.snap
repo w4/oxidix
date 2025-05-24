@@ -1,0 +1,35 @@
+---
+source: nix-ast/src/lib.rs
+expression: "[(1 + 2 + 3) 4]\n"
+input_file: nix-ast/fixtures/array_with_expression.nix
+---
+Array(
+    ArrayExpression {
+        values: [
+            Binary(
+                BinaryExpression {
+                    operator: Addition,
+                    left: Binary(
+                        BinaryExpression {
+                            operator: Addition,
+                            left: Int(
+                                1,
+                            ),
+                            right: Int(
+                                2,
+                            ),
+                            postfix: None,
+                        },
+                    ),
+                    right: Int(
+                        3,
+                    ),
+                    postfix: None,
+                },
+            ),
+            Int(
+                4,
+            ),
+        ],
+    },
+)

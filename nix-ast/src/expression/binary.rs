@@ -1,28 +1,29 @@
 use std::iter::Peekable;
 
-use nix_lexer::{Lexer, Token};
+use nix_lexer::{Lexer, Token, TokenDiscriminants};
 
-use crate::{Error, Expression, parse_expression_inner};
+use crate::{Error, Expression, expect_next_token_or_error, parse_expression_inner};
 
 #[derive(PartialEq, Eq, Debug, Clone, PartialOrd, Ord)]
 pub struct BinaryExpression<'a> {
     pub operator: BinaryOperator,
     pub left: Expression<'a>,
     pub right: Expression<'a>,
+    pub postfix: Option<Expression<'a>>,
 }
 
 impl<'a> BinaryExpression<'a> {
     pub fn parse(
         stream: &mut Peekable<Lexer<'a, Token<'a>>>,
         min_prec: u8,
-    ) -> Result<Option<(BinaryOperator, Expression<'a>)>, Error> {
+    ) -> Result<Option<(BinaryOperator, Expression<'a>, Option<Expression<'a>>)>, Error> {
         let token = match stream.peek() {
             Some(Ok(tok)) => tok,
             Some(Err(())) => panic!(),
             None => return Ok(None),
         };
 
-        let Some(operator) = BinaryOperator::parse(&token) else {
+        let Some(operator) = BinaryOperator::parse(token) else {
             return Ok(None);
         };
 
@@ -43,9 +44,50 @@ impl<'a> BinaryExpression<'a> {
             None => u8::MAX,
         };
 
-        let right = parse_expression_inner(stream, next_prec)?;
+        let right = match operator {
+            BinaryOperator::AttributeSelection => parse_binary_expression(stream, next_prec)?,
+            _ => parse_expression_inner(stream, next_prec)?,
+        };
 
-        Ok(Some((operator, right)))
+        let postfix = match operator {
+            BinaryOperator::AttributeSelection => {
+                if let Some(Ok(Token::Or)) = stream.peek() {
+                    stream.next();
+                    Some(parse_expression_inner(stream, next_prec)?)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+
+        Ok(Some((operator, right, postfix)))
+    }
+}
+
+fn parse_binary_expression<'a>(
+    stream: &mut Peekable<Lexer<'a, Token<'a>>>,
+    next_prec: u8,
+) -> Result<Expression<'a>, Error> {
+    match stream.next() {
+        Some(Ok(Token::Ident(v))) => Ok(Expression::Ident(v)),
+        Some(Ok(Token::InterpolationStart)) => {
+            let expr = parse_expression_inner(stream, next_prec)?;
+            expect_next_token_or_error(stream, TokenDiscriminants::BraceClose)?;
+            Ok(expr)
+        }
+        Some(Ok(Token::String(_))) => todo!(),
+        Some(Ok(v)) => Err(Error::UnexpectedToken(
+            v.into(),
+            vec![
+                TokenDiscriminants::Ident,
+                TokenDiscriminants::InterpolationStart,
+                TokenDiscriminants::String,
+                TokenDiscriminants::Or,
+            ],
+        )),
+        Some(Err(())) => panic!(),
+        None => Err(Error::UnexpectedEndOfFile),
     }
 }
 
@@ -123,7 +165,8 @@ impl BinaryOperator {
             | Token::Semicolon
             | Token::BraceClose
             | Token::BracketClose
-            | Token::SquareBracketClose => None,
+            | Token::SquareBracketClose
+            | Token::Comma => None,
             _ => Some(Self::FunctionApplication),
         }
     }

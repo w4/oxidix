@@ -16,7 +16,6 @@ strum = { version = "0.27", features = ["derive"] }
 
 [dev-dependencies]
 insta = { version = "1.43", features = ["glob"] }
-pretty_assertions = "1.4"
 
 [lints.clippy]
 pedantic = "deny"
