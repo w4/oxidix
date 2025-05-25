@@ -9,7 +9,7 @@ Oxidix provides two complementary crates for working with Nix source code:
 - **`nix-lexer`**: Fast tokenization of Nix source code with support for complex string interpolation
 - **`nix-ast`**: Robust parsing into abstract syntax trees with comprehensive error reporting
 
-## Features
+## Targets
 
 - ✅ **Complete Nix Language Support** - All language constructs including lambdas, attribute sets, string interpolation
 - ⚡ **High Performance** - Zero-copy lexing with optimized parsing algorithms
@@ -85,8 +85,7 @@ match parse_expression(lexer) {
 
 ## Documentation
 
-- [Examples](examples/)
-- [Contributing Guide](#contributing)
+- [Examples](nix-ast/examples/)
 
 ## Supported Nix Constructs
 
@@ -172,15 +171,12 @@ cargo insta review
 cargo insta accept
 ```
 
-## Contributing
-
-We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.md).
-
 ### Development Setup
 
 ```bash
 git clone https://github.com/w4/oxidix
 cd oxidix
+nix develop
 cargo test
 ```
 
